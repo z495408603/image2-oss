@@ -42,6 +42,33 @@ http://127.0.0.1:8320/gpt-image.html
 
 这些配置会保存在当前浏览器的 localStorage。
 
+## 功能展示
+
+
+### 图片生成页面
+
+展示图片接口配置、Prompt、参考图上传和生成参数。
+
+![图片生成页面](docs/images/generator-page.png)
+
+### 生成后自动上传 OSS
+
+展示生成完成后的图片卡片，以及卡片下方返回的 OSS 对象路径或访问链接。
+
+![生成结果与 OSS 链接](docs/images/generated-with-oss-link.png)
+
+### 阿里云 OSS 文件列表
+
+展示图片已经写入阿里云 OSS Bucket，对象路径示例为 `ai-images/yyyy/mm/dd/...png`。
+
+![阿里云 OSS 文件列表](docs/images/aliyun-oss-object-list.png)
+
+### 推荐截图尺寸
+
+- 页面整体截图：`1600x900` 或 `1920x1080`
+- OSS 控制台截图：保留 Bucket、目录和文件列表区域
+- 生成结果截图：保留图片卡片下方的 OSS 上传成功链接
+
 ## OSS 配置方式
 
 可以在页面里填写 OSS 配置并保存到当前浏览器，也可以通过后端环境变量配置。
