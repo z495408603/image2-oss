@@ -709,8 +709,8 @@
                 </button>
             </div>
             <div class="oss-panel" id="ossPanel">
-                <div><label>上传服务地址</label><input id="ossServerUrl" placeholder="http://localhost:8320"
-                                                       value="http://localhost:8320"></div>
+                <div><label>上传服务地址</label><input id="ossServerUrl" placeholder="http://localhost:8321"
+                                                       value=""></div>
                 <div class="oss-grid">
                     <div><label>Region</label><input id="ossRegion" placeholder="oss-cn-hangzhou"></div>
                     <div><label>Bucket</label><input id="ossBucket" placeholder="your-bucket"></div>
@@ -775,7 +775,8 @@
 <script>
     const IMAGE_API_DEFAULT = 'http://127.0.0.1:8317/v1/images';
     const IMAGE_MODEL_DEFAULT = 'gpt-image-2';
-    const OSS_API_DEFAULT = 'http://localhost:8320';
+    const LEGACY_OSS_API_DEFAULT = 'http://localhost:8320';
+    const OSS_API_DEFAULT = resolveOssApiDefault();
     const STATUS_COLORS = {info: 'var(--text2)', success: 'var(--success)', danger: 'var(--danger)'};
     const MAX_REF_FILE_SIZE = 10 * 1024 * 1024;
     const REF_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
@@ -784,6 +785,13 @@
     let historyCache = [];
     let refImageBase64 = null; // 存储参考图base64
     let refImageFile = null; // 保留原始文件供 OpenAI edits 接口上传
+
+    function resolveOssApiDefault() {
+        const isHttpPage = window.location.protocol === 'http:' || window.location.protocol === 'https:';
+        const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        if (isHttpPage && isLocalHost) return window.location.origin;
+        return LEGACY_OSS_API_DEFAULT;
+    }
 
     function getKey() {
         const k = document.getElementById('apiKey').value.trim();
@@ -902,7 +910,11 @@
     function loadOssConfig() {
         try {
             const saved = JSON.parse(localStorage.getItem('imgGenOssConfig') || 'null');
-            setOssConfig(saved || {ossServerUrl: OSS_API_DEFAULT, ossPathPrefix: 'ai-images'});
+            const next = saved || {ossServerUrl: OSS_API_DEFAULT, ossPathPrefix: 'ai-images'};
+            if (!next.ossServerUrl || next.ossServerUrl === LEGACY_OSS_API_DEFAULT) {
+                next.ossServerUrl = OSS_API_DEFAULT;
+            }
+            setOssConfig(next);
         } catch (e) {
             setOssConfig({ossServerUrl: OSS_API_DEFAULT, ossPathPrefix: 'ai-images'});
         }

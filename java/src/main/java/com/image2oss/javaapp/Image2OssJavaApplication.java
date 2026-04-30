@@ -1,0 +1,12 @@
+package com.image2oss.javaapp;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class Image2OssJavaApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(Image2OssJavaApplication.class, args);
+    }
+}

@@ -35,6 +35,36 @@ http://localhost:8320
 http://127.0.0.1:8320/gpt-image.html
 ```
 
+## Java 版本
+
+仓库现在额外提供了一个独立的 Java 上传服务子工程，路径在 `java/`，默认端口是 `8321`，这样可以和现有 Node 版同时运行。
+
+启动方式：
+
+```powershell
+cd java
+mvn spring-boot:run
+```
+
+启动后可以访问：
+
+```text
+http://127.0.0.1:8321/health
+http://127.0.0.1:8321/gpt-image.html
+```
+
+如果你想让现有页面改走 Java 上传服务，只需要把页面里的 OSS 上传地址切到：
+
+```text
+http://127.0.0.1:8321/api/oss/upload
+```
+
+Java 版接口语义与 Node 版保持一致：
+
+- `GET /health`
+- `POST /api/oss/validate`
+- `POST /api/oss/upload`
+
 页面里的“图片接口配置”可以填写：
 
 - 图片 API 地址：默认 `http://127.0.0.1:8317/v1/images`
@@ -132,6 +162,9 @@ $env:OSS_USE_SIGNED_URL="true"
 
 ## 测试
 
+Java 子工程测试：
+
 ```powershell
-npm test
+cd java
+mvn test
 ```
