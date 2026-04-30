@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('node:path');
 const OSS = require('ali-oss');
 const {
+  buildDefaultOssUrl,
   buildObjectName,
   buildPublicUrl,
   normalizeAliyunConfig,
@@ -88,9 +89,12 @@ app.post('/api/oss/upload', async (req, res) => {
       }
     });
 
-    const url = config.useSignedUrl
+    const defaultUrl = buildDefaultOssUrl(config, objectName);
+    const publicUrl = buildPublicUrl(config, objectName);
+    const signedUrl = config.useSignedUrl
       ? client.signatureUrl(objectName, { expires: config.signedUrlExpires })
-      : buildPublicUrl(config, objectName);
+      : '';
+    const url = signedUrl || publicUrl;
 
     res.json({
       ok: true,
@@ -99,6 +103,9 @@ app.post('/api/oss/upload', async (req, res) => {
       objectName,
       contentType: image.contentType,
       size: image.buffer.length,
+      defaultUrl,
+      publicUrl,
+      signedUrl,
       url
     });
   } catch (error) {

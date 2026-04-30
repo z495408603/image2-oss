@@ -1,717 +1,1411 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Image Generator</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#0a0a0f;--surface:#14141f;--surface2:#1e1e2e;--border:#2a2a3e;--accent:#7c5cfc;--accent2:#a78bfa;--text:#e2e2f0;--text2:#8888a0;--success:#34d399;--danger:#f87171}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 20% 20%,rgba(124,92,252,0.08),transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(167,139,250,0.05),transparent 50%);pointer-events:none;z-index:0}
-.app{position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:20px;display:grid;grid-template-columns:360px 1fr;gap:24px;min-height:100vh}
-@media(max-width:900px){.app{grid-template-columns:1fr;padding:12px;gap:16px}}
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:16px;height:fit-content;position:sticky;top:20px}
-.panel h1{font-size:1.4rem;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:flex;align-items:center;gap:8px}
-.panel h1::before{content:'✦';-webkit-text-fill-color:var(--accent);font-size:1.2rem}
-label{font-size:.85rem;color:var(--text2);font-weight:500;margin-bottom:2px;display:block}
-select,textarea,input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:.9rem;outline:none;transition:border-color .2s}
-select:focus,textarea:focus,input:focus{border-color:var(--accent)}
-textarea{resize:vertical;min-height:120px;font-family:inherit;line-height:1.5}
-.row{display:flex;gap:12px}
-.row>*{flex:1}
-.btn{padding:12px 20px;border:none;border-radius:10px;font-size:.95rem;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
-.btn-primary{background:linear-gradient(135deg,var(--accent),#6d4de8);color:#fff;box-shadow:0 4px 20px rgba(124,92,252,0.3)}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(124,92,252,0.4)}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
-.btn-secondary:hover{border-color:var(--accent)}
-.btn-danger{background:rgba(248,113,113,0.15);color:var(--danger);border:1px solid rgba(248,113,113,0.3);padding:6px 12px;font-size:.8rem}
-.btn-danger:hover{background:rgba(248,113,113,0.25)}
-.spinner{width:18px;height:18px;border:2px solid transparent;border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
-@keyframes spin{to{transform:rotate(360deg)}}
-.main{display:flex;flex-direction:column;gap:24px}
-.output-area{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;min-height:400px;display:flex;flex-direction:column;gap:16px}
-.output-area h2{font-size:1.1rem;color:var(--text2);font-weight:500}
-.images-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-.img-card{position:relative;border-radius:12px;overflow:hidden;background:var(--surface2);border:1px solid var(--border);cursor:pointer;transition:transform .2s;animation:fadeIn .4s ease}
-.img-card:hover{transform:scale(1.02)}
-.img-card img{width:100%;display:block}
-.img-card .actions{position:absolute;bottom:0;left:0;right:0;padding:10px;background:linear-gradient(transparent,rgba(0,0,0,.8));display:flex;gap:8px;opacity:0;transition:opacity .2s}
-.img-card:hover .actions{opacity:1}
-.img-card .actions button{padding:6px 12px;border:none;border-radius:6px;background:rgba(255,255,255,.15);color:#fff;font-size:.8rem;cursor:pointer;backdrop-filter:blur(8px)}
-.img-card .actions button:hover{background:rgba(255,255,255,.25)}
-.lightbox{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:1000;display:none;align-items:center;justify-content:center;cursor:zoom-out;backdrop-filter:blur(10px)}
-.lightbox.active{display:flex}
-.lightbox img{max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:0 0 60px rgba(124,92,252,0.2)}
-.lightbox .lb-actions{position:fixed;bottom:30px;display:flex;gap:12px}
-.lightbox .lb-actions button{padding:10px 20px;border:none;border-radius:8px;background:rgba(255,255,255,.1);color:#fff;font-size:.9rem;cursor:pointer;backdrop-filter:blur(8px);transition:background .2s}
-.lightbox .lb-actions button:hover{background:rgba(255,255,255,.2)}
-.history-item{display:flex;gap:10px;padding:8px;border-radius:8px;background:var(--surface2);cursor:pointer;transition:background .2s;align-items:center}
-.history-item:hover{background:var(--border)}
-.history-item .info{flex:1;overflow:hidden}
-.history-item .info p{font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-.history-item .info span{font-size:.7rem;color:var(--text2)}
-.placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;color:var(--text2);gap:12px}
-.placeholder svg{width:64px;height:64px;opacity:.3}
-.key-input-wrap{position:relative}
-.key-input-wrap input{padding-right:36px}
-.key-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:1rem;padding:0;width:auto}
-.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px}
-.toggle-row{display:flex;align-items:center;gap:10px;color:var(--text);font-size:.86rem;cursor:pointer;user-select:none}
-.toggle-row input{width:auto;accent-color:var(--accent)}
-.muted{font-size:.75rem;color:var(--text2);line-height:1.45}
-.oss-panel{display:none;flex-direction:column;gap:12px;border:1px solid var(--border);border-radius:12px;padding:14px;background:rgba(30,30,46,.6)}
-.oss-panel.active{display:flex}
-.oss-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:900px){.oss-grid{grid-template-columns:1fr}}
-.upload-line{font-size:.76rem;color:var(--text2);padding:7px 10px;border-top:1px solid var(--border);background:rgba(10,10,15,.55);word-break:break-all}
-.upload-line a{color:var(--success);text-decoration:none}
-.upload-line a:hover{text-decoration:underline}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
 
-/* 参考图上传区域样式 */
-.ref-upload-area{
-  border:2px dashed var(--border);
-  border-radius:12px;
-  padding:16px;
-  text-align:center;
-  cursor:pointer;
-  transition:all .2s;
-  background:var(--surface2);
-  position:relative;
-  min-height:120px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-}
-.ref-upload-area:hover,.ref-upload-area.dragover{
-  border-color:var(--accent);
-  background:rgba(124,92,252,0.08);
-}
-.ref-upload-area svg{width:32px;height:32px;opacity:.5}
-.ref-upload-area p{font-size:.8rem;color:var(--text2)}
-.ref-upload-area .hint{font-size:.7rem;color:var(--text2);opacity:.7}
-.ref-upload-area:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.ref-preview-wrap{position:relative;width:100%;border-radius:10px;overflow:hidden;border:1px solid var(--border);display:none}
-.ref-preview-wrap.active{display:block}
-.ref-preview-wrap img{width:100%;display:block;max-height:200px;object-fit:cover}
-.ref-preview-wrap .ref-remove{
-  position:absolute;top:8px;right:8px;
-  background:rgba(10,10,15,0.8);color:var(--danger);
-  border:none;border-radius:6px;padding:4px 10px;font-size:.75rem;cursor:pointer;
-  backdrop-filter:blur(4px);
-}
-.ref-preview-wrap .ref-info{
-  position:absolute;bottom:0;left:0;right:0;
-  background:linear-gradient(transparent,rgba(0,0,0,.8));
-  padding:8px 12px;font-size:.75rem;color:#fff;
-}
-.ref-preview-wrap .ref-change{
-  position:absolute;top:8px;left:8px;
-  background:rgba(10,10,15,0.8);color:#fff;
-  border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:4px 10px;font-size:.75rem;cursor:pointer;
-  backdrop-filter:blur(4px);
-}
+        :root {
+            --bg: #0a0a0f;
+            --surface: #14141f;
+            --surface2: #1e1e2e;
+            --border: #2a2a3e;
+            --accent: #7c5cfc;
+            --accent2: #a78bfa;
+            --text: #e2e2f0;
+            --text2: #8888a0;
+            --success: #34d399;
+            --danger: #f87171
+        }
 
-@keyframes fadeIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
-::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-</style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(ellipse at 20% 20%, rgba(124, 92, 252, 0.08), transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(167, 139, 250, 0.05), transparent 50%);
+            pointer-events: none;
+            z-index: 0
+        }
+
+        .app {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns:360px 1fr;
+            gap: 24px;
+            min-height: 100vh
+        }
+
+        @media (max-width: 900px) {
+            .app {
+                grid-template-columns:1fr;
+                padding: 12px;
+                gap: 16px
+            }
+        }
+
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            height: fit-content;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            position: sticky;
+            top: 20px
+        }
+
+        @media (max-width: 900px) {
+            .panel {
+                position: static;
+                max-height: none;
+                overflow: visible
+            }
+        }
+
+        .panel h1 {
+            font-size: 1.4rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .panel h1::before {
+            content: '✦';
+            -webkit-text-fill-color: var(--accent);
+            font-size: 1.2rem
+        }
+
+        label {
+            font-size: .85rem;
+            color: var(--text2);
+            font-weight: 500;
+            margin-bottom: 2px;
+            display: block
+        }
+
+        select, textarea, input {
+            width: 100%;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: var(--text);
+            font-size: .9rem;
+            outline: none;
+            transition: border-color .2s
+        }
+
+        select:focus, textarea:focus, input:focus {
+            border-color: var(--accent)
+        }
+
+        .panel.mask-inputs input:not([type="checkbox"]):not([type="file"]):not(.input-visible) {
+            -webkit-text-security: disc
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: inherit;
+            line-height: 1.5
+        }
+
+        .row {
+            display: flex;
+            gap: 12px
+        }
+
+        .row > * {
+            flex: 1
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: .95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #6d4de8);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(124, 92, 252, 0.3)
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 24px rgba(124, 92, 252, 0.4)
+        }
+
+        .btn-primary:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+            transform: none
+        }
+
+        .btn-secondary {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border)
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent)
+        }
+
+        .btn-danger {
+            background: rgba(248, 113, 113, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            padding: 6px 12px;
+            font-size: .8rem
+        }
+
+        .btn-danger:hover {
+            background: rgba(248, 113, 113, 0.25)
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid transparent;
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin .6s linear infinite;
+            display: none
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .main {
+            display: flex;
+            flex-direction: column;
+            gap: 24px
+        }
+
+        .output-area {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px
+        }
+
+        .output-area h2 {
+            display: none
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns:repeat(auto-fit, minmax(360px, 1fr));
+            gap: 16px
+        }
+
+        .img-card {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: transform .2s;
+            animation: fadeIn .4s ease
+        }
+
+        .img-card:hover {
+            transform: scale(1.02)
+        }
+
+        .img-card img {
+            width: 100%;
+            display: block
+        }
+
+        .img-card .actions {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 10px;
+            background: linear-gradient(transparent, rgba(0, 0, 0, .8));
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity .2s
+        }
+
+        .img-card:hover .actions {
+            opacity: 1
+        }
+
+        .img-card .actions button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, .15);
+            color: #fff;
+            font-size: .8rem;
+            cursor: pointer;
+            backdrop-filter: blur(8px)
+        }
+
+        .img-card .actions button:hover {
+            background: rgba(255, 255, 255, .25)
+        }
+
+        .lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, .9);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-out;
+            backdrop-filter: blur(10px)
+        }
+
+        .lightbox.active {
+            display: flex
+        }
+
+        .lightbox img {
+            max-width: 90vw;
+            max-height: 90vh;
+            border-radius: 12px;
+            box-shadow: 0 0 60px rgba(124, 92, 252, 0.2)
+        }
+
+        .lightbox .lb-actions {
+            position: fixed;
+            bottom: 30px;
+            display: flex;
+            gap: 12px
+        }
+
+        .lightbox .lb-actions button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .1);
+            color: #fff;
+            font-size: .9rem;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: background .2s
+        }
+
+        .lightbox .lb-actions button:hover {
+            background: rgba(255, 255, 255, .2)
+        }
+
+        .history-item {
+            display: flex;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 8px;
+            background: var(--surface2);
+            cursor: pointer;
+            transition: background .2s;
+            align-items: center
+        }
+
+        .history-item:hover {
+            background: var(--border)
+        }
+
+        .history-item .info {
+            flex: 1;
+            overflow: hidden
+        }
+
+        .history-item .info p {
+            font-size: .8rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text)
+        }
+
+        .history-item .info span {
+            font-size: .7rem;
+            color: var(--text2)
+        }
+
+        .placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            color: var(--text2);
+            gap: 12px
+        }
+
+        .images-grid > .placeholder {
+            grid-column: 1/-1
+        }
+
+        .placeholder svg {
+            width: 64px;
+            height: 64px;
+            opacity: .3
+        }
+
+        .key-input-wrap {
+            position: relative
+        }
+
+        .key-input-wrap input {
+            padding-right: 36px
+        }
+
+        .key-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text2);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0;
+            width: auto
+        }
+
+        .section-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text);
+            font-size: .86rem;
+            cursor: pointer;
+            user-select: none
+        }
+
+        .toggle-row input {
+            width: auto;
+            accent-color: var(--accent)
+        }
+
+        .muted {
+            font-size: .75rem;
+            color: var(--text2);
+            line-height: 1.45
+        }
+
+        .oss-panel {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            background: rgba(30, 30, 46, .6)
+        }
+
+        .oss-panel.active {
+            display: flex
+        }
+
+        .oss-grid {
+            display: grid;
+            grid-template-columns:1fr 1fr;
+            gap: 12px
+        }
+
+        @media (max-width: 900px) {
+            .oss-grid {
+                grid-template-columns:1fr
+            }
+        }
+
+        .upload-line {
+            font-size: .76rem;
+            color: var(--text2);
+            padding: 7px 10px;
+            border-top: 1px solid var(--border);
+            background: rgba(10, 10, 15, .55);
+            word-break: break-all
+        }
+
+        .upload-line a {
+            color: var(--success);
+            text-decoration: none
+        }
+
+        .upload-line a:hover {
+            text-decoration: underline
+        }
+
+        /* 参考图上传区域样式 */
+        .ref-upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all .2s;
+            background: var(--surface2);
+            position: relative;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .ref-upload-area:hover, .ref-upload-area.dragover {
+            border-color: var(--accent);
+            background: rgba(124, 92, 252, 0.08);
+        }
+
+        .ref-upload-area svg {
+            width: 32px;
+            height: 32px;
+            opacity: .5
+        }
+
+        .ref-upload-area p {
+            font-size: .8rem;
+            color: var(--text2)
+        }
+
+        .ref-upload-area .hint {
+            font-size: .7rem;
+            color: var(--text2);
+            opacity: .7
+        }
+
+        .ref-upload-area:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px
+        }
+
+        .ref-preview-wrap {
+            position: relative;
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            display: none
+        }
+
+        .ref-preview-wrap.active {
+            display: block
+        }
+
+        .ref-preview-wrap img {
+            width: 100%;
+            display: block;
+            max-height: 200px;
+            object-fit: cover
+        }
+
+        .ref-preview-wrap .ref-remove {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(10, 10, 15, 0.8);
+            color: var(--danger);
+            border: none;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: .75rem;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+        }
+
+        .ref-preview-wrap .ref-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, .8));
+            padding: 8px 12px;
+            font-size: .75rem;
+            color: #fff;
+        }
+
+        .ref-preview-wrap .ref-change {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(10, 10, 15, 0.8);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: .75rem;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(.95)
+            }
+            to {
+                opacity: 1;
+                transform: scale(1)
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px
+        }
+    </style>
 </head>
 <body>
 <div class="app">
-<div class="panel">
-<h1>AI Image Generator</h1>
-<div><label>令牌密钥</label><div class="key-input-wrap"><input type="password" id="apiKey" placeholder="输入你的 API Key" value=""><button class="key-toggle" onclick="toggleKey()">👁</button></div></div>
-<div class="oss-panel active">
-  <div class="section-title">
-    <label>图片接口配置</label>
-    <button class="btn btn-secondary" style="padding:4px 10px;font-size:.75rem" onclick="saveImageApiConfig(true)">保存</button>
-  </div>
-  <div><label>图片 API 地址</label><input id="imageApiBase" placeholder="http://127.0.0.1:8317/v1/images" value="http://127.0.0.1:8317/v1/images"></div>
-  <div><label>模型名称</label><input id="imageModel" placeholder="gpt-image-2" value="gpt-image-2"></div>
-  <p class="muted">页面会自动调用该地址下的 `/generations` 和 `/edits`。如果你的代理服务路径不同，填写到 `/v1/images` 这一层即可。</p>
-</div>
-<div><label>Prompt</label><textarea id="prompt" placeholder="描述你想生成的图片...&#10;例如: A cyberpunk city at sunset with neon lights"></textarea></div>
+    <div class="panel mask-inputs" id="settingsPanel">
+        <h1>AI Image Generator</h1>
+        <label class="toggle-row"><input type="checkbox" id="maskInputs" checked onchange="toggleInputMask()">隐藏输入内容</label>
+        <div><label>令牌密钥</label>
+            <div class="key-input-wrap"><input type="password" id="apiKey" placeholder="输入你的 API Key" value="">
+                <button class="key-toggle" onclick="toggleKey()">👁</button>
+            </div>
+        </div>
+        <div class="oss-panel active">
+            <div class="section-title">
+                <label>图片接口配置</label>
+                <button class="btn btn-secondary" style="padding:4px 10px;font-size:.75rem"
+                        onclick="saveImageApiConfig(true)">保存
+                </button>
+            </div>
+            <div><label>图片 API 地址</label><input id="imageApiBase" placeholder="http://127.0.0.1:8317/v1/images"
+                                                    value="http://127.0.0.1:8317/v1/images"></div>
+            <div><label>模型名称</label><input id="imageModel" placeholder="gpt-image-2" value="gpt-image-2"></div>
+            <p class="muted">页面会自动调用该地址下的 `/generations` 和 `/edits`。如果你的代理服务路径不同，填写到
+                `/v1/images` 这一层即可。</p>
+        </div>
+        <div><label>Prompt</label><textarea id="prompt"
+                                            placeholder="描述你想生成的图片...&#10;例如: A cyberpunk city at sunset with neon lights"></textarea>
+        </div>
 
-<!-- 参考图上传区域 -->
-<div>
-  <label>参考图（可选）</label>
-  <div class="ref-upload-area" id="refUploadArea" role="button" tabindex="0" aria-controls="refFileInput" aria-label="上传参考图">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-    <p>点击上传、拖拽图片到此处</p>
-    <p class="hint">支持 PNG / JPG / WEBP，或直接在页面按 Ctrl+V / Cmd+V 粘贴</p>
-  </div>
-  <div class="ref-preview-wrap" id="refPreviewWrap">
-    <button type="button" class="ref-change" onclick="openRefPicker(event)">更换</button>
-    <img id="refPreviewImg" src="" alt="参考图">
-    <button type="button" class="ref-remove" onclick="removeRefImage(event)">✕ 移除</button>
-    <div class="ref-info" id="refInfo">参考图</div>
-  </div>
-  <input type="file" id="refFileInput" accept="image/png,image/jpeg,image/webp" style="display:none">
-</div>
+        <!-- 参考图上传区域 -->
+        <div>
+            <label>参考图（可选）</label>
+            <div class="ref-upload-area" id="refUploadArea" role="button" tabindex="0" aria-controls="refFileInput"
+                 aria-label="上传参考图">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <p>点击上传、拖拽图片到此处</p>
+                <p class="hint">支持 PNG / JPG / WEBP，或直接在页面按 Ctrl+V / Cmd+V 粘贴</p>
+            </div>
+            <div class="ref-preview-wrap" id="refPreviewWrap">
+                <button type="button" class="ref-change" onclick="openRefPicker(event)">更换</button>
+                <img id="refPreviewImg" src="" alt="参考图">
+                <button type="button" class="ref-remove" onclick="removeRefImage(event)">✕ 移除</button>
+                <div class="ref-info" id="refInfo">参考图</div>
+            </div>
+            <input type="file" id="refFileInput" accept="image/png,image/jpeg,image/webp" style="display:none">
+        </div>
 
-<div class="row">
-<div><label>尺寸</label><select id="size">
-<option value="1024x1024">1024×1024 (方形)</option>
-<option value="1024x1536">1024×1536 (竖版)</option>
-<option value="1536x1024">1536×1024 (横版)</option>
-<option value="2048x2048">2048×2048 (2K方形)</option>
-<option value="3840x2160">3840×2160 (4K横版)</option>
-<option value="2160x3840">2160×3840 (4K竖版)</option>
-<option value="2048x1152">2048×1152 (2K横版)</option>
-<option value="auto">自动</option>
-</select></div>
-</div>
-<div class="row">
-<div><label>数量</label><select id="count"><option value="1">1 张</option><option value="2">2 张</option><option value="3">3 张</option><option value="4">4 张</option></select></div>
-<div><label>风格提示</label><select id="style"><option value="">无</option><option value="photorealistic, 8k, detailed">写实</option><option value="anime style, vibrant colors">动漫</option><option value="oil painting, artistic">油画</option><option value="watercolor, soft tones">水彩</option><option value="pixel art, retro">像素</option><option value="3d render, cinema 4d">3D渲染</option></select></div>
-</div>
-<div>
-  <div class="section-title">
-    <label class="toggle-row"><input type="checkbox" id="ossEnabled" onchange="toggleOssPanel();saveOssConfig(false)">生成后自动上传到 OSS</label>
-    <button class="btn btn-secondary" style="padding:4px 10px;font-size:.75rem" onclick="saveOssConfig(true)">保存</button>
-  </div>
-  <div class="oss-panel" id="ossPanel">
-    <div><label>上传服务地址</label><input id="ossServerUrl" placeholder="http://localhost:8320" value="http://localhost:8320"></div>
-    <div class="oss-grid">
-      <div><label>Region</label><input id="ossRegion" placeholder="oss-cn-hangzhou"></div>
-      <div><label>Bucket</label><input id="ossBucket" placeholder="your-bucket"></div>
+        <div class="row">
+            <div><label>尺寸</label><select id="size">
+                <option value="1024x1024">1024×1024 (方形)</option>
+                <option value="1024x1536">1024×1536 (竖版)</option>
+                <option value="1536x1024">1536×1024 (横版)</option>
+                <option value="2048x2048">2048×2048 (2K方形)</option>
+                <option value="3840x2160">3840×2160 (4K横版)</option>
+                <option value="2160x3840">2160×3840 (4K竖版)</option>
+                <option value="2048x1152">2048×1152 (2K横版)</option>
+                <option value="auto">自动</option>
+            </select></div>
+        </div>
+        <div class="row">
+            <div><label>数量</label><select id="count">
+                <option value="1">1 张</option>
+                <option value="2">2 张</option>
+                <option value="3">3 张</option>
+                <option value="4">4 张</option>
+            </select></div>
+            <div><label>风格提示</label><select id="style">
+                <option value="">无</option>
+                <option value="photorealistic, 8k, detailed">写实</option>
+                <option value="anime style, vibrant colors">动漫</option>
+                <option value="oil painting, artistic">油画</option>
+                <option value="watercolor, soft tones">水彩</option>
+                <option value="pixel art, retro">像素</option>
+                <option value="3d render, cinema 4d">3D渲染</option>
+            </select></div>
+        </div>
+        <div>
+            <div class="section-title">
+                <label class="toggle-row"><input type="checkbox" id="ossEnabled"
+                                                 onchange="toggleOssPanel();saveOssConfig(false)">生成后自动上传到
+                    OSS</label>
+                <button class="btn btn-secondary" style="padding:4px 10px;font-size:.75rem"
+                        onclick="saveOssConfig(true)">保存
+                </button>
+            </div>
+            <div class="oss-panel" id="ossPanel">
+                <div><label>上传服务地址</label><input id="ossServerUrl" placeholder="http://localhost:8320"
+                                                       value="http://localhost:8320"></div>
+                <div class="oss-grid">
+                    <div><label>Region</label><input id="ossRegion" placeholder="oss-cn-hangzhou"></div>
+                    <div><label>Bucket</label><input id="ossBucket" placeholder="your-bucket"></div>
+                </div>
+                <div class="oss-grid">
+                    <div><label>AccessKeyId</label><input id="ossAccessKeyId" autocomplete="off"
+                                                          placeholder="建议使用 RAM 子账号或 STS"></div>
+                    <div><label>AccessKeySecret</label>
+                        <div class="key-input-wrap"><input type="password" id="ossAccessKeySecret" autocomplete="off"
+                                                           placeholder="不要使用主账号密钥">
+                            <button class="key-toggle" onclick="toggleInputType('ossAccessKeySecret')">👁</button>
+                        </div>
+                    </div>
+                </div>
+                <div><label>STS Token（可选）</label><input id="ossStsToken" autocomplete="off"
+                                                          placeholder="使用临时凭证时填写"></div>
+                <div class="oss-grid">
+                    <div><label>对象路径前缀</label><input id="ossPathPrefix" placeholder="ai-images" value="ai-images">
+                    </div>
+                    <div><label>Endpoint（可选）</label><input id="ossEndpoint"
+                                                             placeholder="oss-cn-hangzhou.aliyuncs.com"></div>
+                </div>
+                <div><label>公开访问域名/CDN（可选）</label><input id="ossPublicBaseUrl"
+                                                                 placeholder="https://cdn.example.com/images"></div>
+                <div class="oss-grid">
+                    <label class="toggle-row"><input type="checkbox" id="ossUseSignedUrl">返回私有 Bucket 签名
+                        URL</label>
+                    <div><label>签名有效期（秒）</label><input id="ossSignedUrlExpires" type="number" min="60"
+                                                             value="3600"></div>
+                </div>
+                <div class="row">
+                    <button class="btn btn-secondary" onclick="validateOssConfig()">校验配置</button>
+                    <button class="btn btn-secondary" onclick="fillOssFromEnvHint()">使用后端环境变量</button>
+                </div>
+                <p class="muted">推荐使用只允许 PutObject 的 RAM 子账号或 STS 临时凭证。这里的配置保存在当前浏览器
+                    localStorage，并只发送给你填写的上传服务。</p>
+            </div>
+        </div>
+        <button class="btn btn-primary" id="generateBtn" onclick="generate()"><span class="spinner" id="spinner"></span><span
+                id="btnText">生成图片</span></button>
+        <div id="status" style="font-size:.85rem;color:var(--text2);text-align:center;min-height:20px"></div>
+        <hr style="border:none;border-top:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center"><label>历史记录</label>
+            <button class="btn btn-secondary" style="padding:4px 10px;font-size:.75rem" onclick="clearHistory()">清空
+            </button>
+        </div>
+        <div id="history" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto"></div>
     </div>
-    <div class="oss-grid">
-      <div><label>AccessKeyId</label><input id="ossAccessKeyId" autocomplete="off" placeholder="建议使用 RAM 子账号或 STS"></div>
-      <div><label>AccessKeySecret</label><div class="key-input-wrap"><input type="password" id="ossAccessKeySecret" autocomplete="off" placeholder="不要使用主账号密钥"><button class="key-toggle" onclick="toggleInputType('ossAccessKeySecret')">👁</button></div></div>
+    <div class="main">
+        <div class="output-area"><h2 id="outputTitle">生成结果</h2>
+            <div class="images-grid" id="imagesGrid"></div>
+        </div>
     </div>
-    <div><label>STS Token（可选）</label><input id="ossStsToken" autocomplete="off" placeholder="使用临时凭证时填写"></div>
-    <div class="oss-grid">
-      <div><label>对象路径前缀</label><input id="ossPathPrefix" placeholder="ai-images" value="ai-images"></div>
-      <div><label>Endpoint（可选）</label><input id="ossEndpoint" placeholder="oss-cn-hangzhou.aliyuncs.com"></div>
-    </div>
-    <div><label>公开访问域名/CDN（可选）</label><input id="ossPublicBaseUrl" placeholder="https://cdn.example.com/images"></div>
-    <div class="oss-grid">
-      <label class="toggle-row"><input type="checkbox" id="ossUseSignedUrl">返回私有 Bucket 签名 URL</label>
-      <div><label>签名有效期（秒）</label><input id="ossSignedUrlExpires" type="number" min="60" value="3600"></div>
-    </div>
-    <div class="row">
-      <button class="btn btn-secondary" onclick="validateOssConfig()">校验配置</button>
-      <button class="btn btn-secondary" onclick="fillOssFromEnvHint()">使用后端环境变量</button>
-    </div>
-    <p class="muted">推荐使用只允许 PutObject 的 RAM 子账号或 STS 临时凭证。这里的配置保存在当前浏览器 localStorage，并只发送给你填写的上传服务。</p>
-  </div>
-</div>
-<button class="btn btn-primary" id="generateBtn" onclick="generate()"><span class="spinner" id="spinner"></span><span id="btnText">生成图片</span></button>
-<div id="status" style="font-size:.85rem;color:var(--text2);text-align:center;min-height:20px"></div>
-<hr style="border:none;border-top:1px solid var(--border)">
-<div style="display:flex;justify-content:space-between;align-items:center"><label>历史记录</label><button class="btn btn-secondary" style="padding:4px 10px;font-size:.75rem" onclick="clearHistory()">清空</button></div>
-<div id="history" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto"></div>
-</div>
-<div class="main">
-<div class="output-area"><h2 id="outputTitle">生成结果</h2><div class="images-grid" id="imagesGrid"></div></div>
-</div>
 </div>
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
-<img id="lbImg" src="" alt="">
-<div class="lb-actions" onclick="event.stopPropagation()">
-<button onclick="downloadImage(document.getElementById('lbImg').src,'ai-image.png')">下载图片</button>
-<button onclick="closeLightbox()">关闭</button>
-</div>
+    <img id="lbImg" src="" alt="">
+    <div class="lb-actions" onclick="event.stopPropagation()">
+        <button onclick="downloadImage(document.getElementById('lbImg').src,'ai-image.png')">下载图片</button>
+        <button onclick="closeLightbox()">关闭</button>
+    </div>
 </div>
 <script>
-const IMAGE_API_DEFAULT='http://127.0.0.1:8317/v1/images';
-const IMAGE_MODEL_DEFAULT='gpt-image-2';
-const OSS_API_DEFAULT='http://localhost:8320';
-const STATUS_COLORS={info:'var(--text2)',success:'var(--success)',danger:'var(--danger)'};
-const MAX_REF_FILE_SIZE=10*1024*1024;
-const REF_IMAGE_TYPES=new Set(['image/png','image/jpeg','image/webp']);
-const OSS_CONFIG_FIELDS=['ossServerUrl','ossRegion','ossBucket','ossAccessKeyId','ossAccessKeySecret','ossStsToken','ossPathPrefix','ossEndpoint','ossPublicBaseUrl','ossSignedUrlExpires'];
-let generating=false;
-let refImageBase64=null; // 存储参考图base64
-let refImageFile=null; // 保留原始文件供 OpenAI edits 接口上传
+    const IMAGE_API_DEFAULT = 'http://127.0.0.1:8317/v1/images';
+    const IMAGE_MODEL_DEFAULT = 'gpt-image-2';
+    const OSS_API_DEFAULT = 'http://localhost:8320';
+    const STATUS_COLORS = {info: 'var(--text2)', success: 'var(--success)', danger: 'var(--danger)'};
+    const MAX_REF_FILE_SIZE = 10 * 1024 * 1024;
+    const REF_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+    const OSS_CONFIG_FIELDS = ['ossServerUrl', 'ossRegion', 'ossBucket', 'ossAccessKeyId', 'ossAccessKeySecret', 'ossStsToken', 'ossPathPrefix', 'ossEndpoint', 'ossPublicBaseUrl', 'ossSignedUrlExpires'];
+    let generating = false;
+    let refImageBase64 = null; // 存储参考图base64
+    let refImageFile = null; // 保留原始文件供 OpenAI edits 接口上传
 
-function getKey(){
-  const k=document.getElementById('apiKey').value.trim();
-  if(k)localStorage.setItem('imgGenApiKey',k);
-  return k;
-}
-(function(){const saved=localStorage.getItem('imgGenApiKey');if(saved)document.getElementById('apiKey').value=saved})();
+    function getKey() {
+        const k = document.getElementById('apiKey').value.trim();
+        if (k) localStorage.setItem('imgGenApiKey', k);
+        return k;
+    }
 
-function toggleKey(){
-  toggleInputType('apiKey');
-}
+    (function () {
+        const saved = localStorage.getItem('imgGenApiKey');
+        if (saved) document.getElementById('apiKey').value = saved
+    })();
 
-function toggleInputType(id){
-  const inp=document.getElementById(id);
-  inp.type=inp.type==='password'?'text':'password';
-}
+    function toggleKey() {
+        toggleInputType('apiKey');
+    }
 
-// ========== 图片接口配置 ==========
-function getImageApiConfig(){
-  return {
-    baseUrl:(document.getElementById('imageApiBase').value.trim()||IMAGE_API_DEFAULT).replace(/\/+$/,''),
-    model:document.getElementById('imageModel').value.trim()||IMAGE_MODEL_DEFAULT
-  };
-}
+    function toggleInputType(id) {
+        const inp = document.getElementById(id);
+        inp.type = inp.type === 'password' ? 'text' : 'password';
+        inp.classList.toggle('input-visible', inp.type === 'text');
+    }
 
-function saveImageApiConfig(showMessage=true){
-  localStorage.setItem('imgGenImageApiConfig',JSON.stringify(getImageApiConfig()));
-  if(showMessage)showStatus('图片接口配置已保存','success');
-}
+    function toggleInputMask() {
+        const enabled = document.getElementById('maskInputs').checked;
+        document.getElementById('settingsPanel').classList.toggle('mask-inputs', enabled);
+        ['apiKey', 'ossAccessKeySecret'].forEach(id => {
+            const inp = document.getElementById(id);
+            if (!inp) return;
+            inp.type = enabled ? 'password' : 'text';
+            inp.classList.toggle('input-visible', !enabled);
+        });
+        localStorage.setItem('imgGenMaskInputs', enabled ? '1' : '0');
+    }
 
-function loadImageApiConfig(){
-  try{
-    const saved=JSON.parse(localStorage.getItem('imgGenImageApiConfig')||'null')||{};
-    document.getElementById('imageApiBase').value=saved.baseUrl||IMAGE_API_DEFAULT;
-    document.getElementById('imageModel').value=saved.model||IMAGE_MODEL_DEFAULT;
-  }catch(e){
-    document.getElementById('imageApiBase').value=IMAGE_API_DEFAULT;
-    document.getElementById('imageModel').value=IMAGE_MODEL_DEFAULT;
-  }
-}
+    function loadInputMask() {
+        const saved = localStorage.getItem('imgGenMaskInputs');
+        document.getElementById('maskInputs').checked = saved !== '0';
+        toggleInputMask();
+    }
 
-// ========== OSS 配置 ==========
-function getOssConfig(){
-  return {
-    enabled:document.getElementById('ossEnabled').checked,
-    serverUrl:(document.getElementById('ossServerUrl').value.trim()||OSS_API_DEFAULT).replace(/\/+$/,''),
-    provider:'aliyun',
-    region:document.getElementById('ossRegion').value.trim(),
-    bucket:document.getElementById('ossBucket').value.trim(),
-    accessKeyId:document.getElementById('ossAccessKeyId').value.trim(),
-    accessKeySecret:document.getElementById('ossAccessKeySecret').value.trim(),
-    stsToken:document.getElementById('ossStsToken').value.trim(),
-    pathPrefix:document.getElementById('ossPathPrefix').value.trim()||'ai-images',
-    endpoint:document.getElementById('ossEndpoint').value.trim(),
-    publicBaseUrl:document.getElementById('ossPublicBaseUrl').value.trim(),
-    useSignedUrl:document.getElementById('ossUseSignedUrl').checked,
-    signedUrlExpires:Number(document.getElementById('ossSignedUrlExpires').value||3600)
-  };
-}
+    // ========== 图片接口配置 ==========
+    function getImageApiConfig() {
+        return {
+            baseUrl: (document.getElementById('imageApiBase').value.trim() || IMAGE_API_DEFAULT).replace(/\/+$/, ''),
+            model: document.getElementById('imageModel').value.trim() || IMAGE_MODEL_DEFAULT
+        };
+    }
 
-function setOssConfig(config){
-  if(!config)return;
-  document.getElementById('ossEnabled').checked=!!config.enabled;
-  OSS_CONFIG_FIELDS.forEach(id=>{
-    if(config[id]!==undefined)document.getElementById(id).value=config[id];
-  });
-  document.getElementById('ossUseSignedUrl').checked=!!config.ossUseSignedUrl;
-  toggleOssPanel();
-}
+    function saveImageApiConfig(showMessage = true) {
+        localStorage.setItem('imgGenImageApiConfig', JSON.stringify(getImageApiConfig()));
+        if (showMessage) showStatus('图片接口配置已保存', 'success');
+    }
 
-function toStoredOssConfig(config){
-  return {
-    enabled:config.enabled,
-    ossServerUrl:config.serverUrl,
-    ossRegion:config.region,
-    ossBucket:config.bucket,
-    ossAccessKeyId:config.accessKeyId,
-    ossAccessKeySecret:config.accessKeySecret,
-    ossStsToken:config.stsToken,
-    ossPathPrefix:config.pathPrefix,
-    ossEndpoint:config.endpoint,
-    ossPublicBaseUrl:config.publicBaseUrl,
-    ossUseSignedUrl:config.useSignedUrl,
-    ossSignedUrlExpires:config.signedUrlExpires
-  };
-}
+    function loadImageApiConfig() {
+        try {
+            const saved = JSON.parse(localStorage.getItem('imgGenImageApiConfig') || 'null') || {};
+            document.getElementById('imageApiBase').value = saved.baseUrl || IMAGE_API_DEFAULT;
+            document.getElementById('imageModel').value = saved.model || IMAGE_MODEL_DEFAULT;
+        } catch (e) {
+            document.getElementById('imageApiBase').value = IMAGE_API_DEFAULT;
+            document.getElementById('imageModel').value = IMAGE_MODEL_DEFAULT;
+        }
+    }
 
-function saveOssConfig(showMessage=true){
-  localStorage.setItem('imgGenOssConfig',JSON.stringify(toStoredOssConfig(getOssConfig())));
-  if(showMessage)showStatus('OSS 配置已保存','success');
-}
+    // ========== OSS 配置 ==========
+    function getOssConfig() {
+        return {
+            enabled: document.getElementById('ossEnabled').checked,
+            serverUrl: (document.getElementById('ossServerUrl').value.trim() || OSS_API_DEFAULT).replace(/\/+$/, ''),
+            provider: 'aliyun',
+            region: document.getElementById('ossRegion').value.trim(),
+            bucket: document.getElementById('ossBucket').value.trim(),
+            accessKeyId: document.getElementById('ossAccessKeyId').value.trim(),
+            accessKeySecret: document.getElementById('ossAccessKeySecret').value.trim(),
+            stsToken: document.getElementById('ossStsToken').value.trim(),
+            pathPrefix: document.getElementById('ossPathPrefix').value.trim() || 'ai-images',
+            endpoint: document.getElementById('ossEndpoint').value.trim(),
+            publicBaseUrl: document.getElementById('ossPublicBaseUrl').value.trim(),
+            useSignedUrl: document.getElementById('ossUseSignedUrl').checked,
+            signedUrlExpires: Number(document.getElementById('ossSignedUrlExpires').value || 3600)
+        };
+    }
 
-function loadOssConfig(){
-  try{
-    const saved=JSON.parse(localStorage.getItem('imgGenOssConfig')||'null');
-    setOssConfig(saved||{ossServerUrl:OSS_API_DEFAULT,ossPathPrefix:'ai-images'});
-  }catch(e){
-    setOssConfig({ossServerUrl:OSS_API_DEFAULT,ossPathPrefix:'ai-images'});
-  }
-}
+    function setOssConfig(config) {
+        if (!config) return;
+        document.getElementById('ossEnabled').checked = !!config.enabled;
+        OSS_CONFIG_FIELDS.forEach(id => {
+            if (config[id] !== undefined) document.getElementById(id).value = config[id];
+        });
+        document.getElementById('ossUseSignedUrl').checked = !!config.ossUseSignedUrl;
+        toggleOssPanel();
+    }
 
-function toggleOssPanel(){
-  document.getElementById('ossPanel').classList.toggle('active',document.getElementById('ossEnabled').checked);
-}
+    function toStoredOssConfig(config) {
+        return {
+            enabled: config.enabled,
+            ossServerUrl: config.serverUrl,
+            ossRegion: config.region,
+            ossBucket: config.bucket,
+            ossAccessKeyId: config.accessKeyId,
+            ossAccessKeySecret: config.accessKeySecret,
+            ossStsToken: config.stsToken,
+            ossPathPrefix: config.pathPrefix,
+            ossEndpoint: config.endpoint,
+            ossPublicBaseUrl: config.publicBaseUrl,
+            ossUseSignedUrl: config.useSignedUrl,
+            ossSignedUrlExpires: config.signedUrlExpires
+        };
+    }
 
-function buildOssPayloadConfig(){
-  const config=getOssConfig();
-  const {serverUrl,enabled,...oss}=config;
-  return {serverUrl,enabled,oss};
-}
+    function saveOssConfig(showMessage = true) {
+        localStorage.setItem('imgGenOssConfig', JSON.stringify(toStoredOssConfig(getOssConfig())));
+        if (showMessage) showStatus('OSS 配置已保存', 'success');
+    }
 
-async function validateOssConfig(){
-  const {serverUrl,oss}=buildOssPayloadConfig();
-  saveOssConfig(false);
-  try{
-    showStatus('正在校验 OSS 配置...');
-    const res=await fetch(`${serverUrl}/api/oss/validate`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({oss})
+    function loadOssConfig() {
+        try {
+            const saved = JSON.parse(localStorage.getItem('imgGenOssConfig') || 'null');
+            setOssConfig(saved || {ossServerUrl: OSS_API_DEFAULT, ossPathPrefix: 'ai-images'});
+        } catch (e) {
+            setOssConfig({ossServerUrl: OSS_API_DEFAULT, ossPathPrefix: 'ai-images'});
+        }
+    }
+
+    function toggleOssPanel() {
+        document.getElementById('ossPanel').classList.toggle('active', document.getElementById('ossEnabled').checked);
+    }
+
+    function buildOssPayloadConfig() {
+        const config = getOssConfig();
+        const {serverUrl, enabled, ...oss} = config;
+        return {serverUrl, enabled, oss};
+    }
+
+    async function validateOssConfig() {
+        const {serverUrl, oss} = buildOssPayloadConfig();
+        saveOssConfig(false);
+        try {
+            showStatus('正在校验 OSS 配置...');
+            const res = await fetch(`${serverUrl}/api/oss/validate`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({oss})
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok || data?.error) throw new Error(data?.error || `校验失败（${res.status}）`);
+            showStatus(`OSS 配置可用：${data.bucket}/${data.pathPrefix}`, 'success');
+        } catch (e) {
+            showStatus(`OSS 校验失败：${e.message}`, 'danger');
+        }
+    }
+
+    function fillOssFromEnvHint() {
+        ['ossRegion', 'ossBucket', 'ossAccessKeyId', 'ossAccessKeySecret', 'ossStsToken', 'ossEndpoint', 'ossPublicBaseUrl'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('ossPathPrefix').value = 'ai-images';
+        saveOssConfig(false);
+        showStatus('已切换为优先使用上传服务环境变量；仍可填写路径前缀等覆盖项', 'success');
+    }
+
+    // ========== 参考图相关 ==========
+    const refUploadArea = document.getElementById('refUploadArea');
+    const refPreviewWrap = document.getElementById('refPreviewWrap');
+    const refPreviewImg = document.getElementById('refPreviewImg');
+    const refInfo = document.getElementById('refInfo');
+    const refFileInput = document.getElementById('refFileInput');
+
+    function openRefPicker(e) {
+        if (e) e.stopPropagation();
+        refFileInput.value = '';
+        refFileInput.click();
+    }
+
+    refUploadArea.addEventListener('click', openRefPicker);
+    refUploadArea.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openRefPicker();
+        }
     });
-    const data=await res.json().catch(()=>null);
-    if(!res.ok||data?.error)throw new Error(data?.error||`校验失败（${res.status}）`);
-    showStatus(`OSS 配置可用：${data.bucket}/${data.pathPrefix}`,'success');
-  }catch(e){
-    showStatus(`OSS 校验失败：${e.message}`,'danger');
-  }
-}
+    refFileInput.addEventListener('change', e => {
+        const [file] = e.target.files || [];
+        if (file) handleRefFile(file);
+    });
 
-function fillOssFromEnvHint(){
-  ['ossRegion','ossBucket','ossAccessKeyId','ossAccessKeySecret','ossStsToken','ossEndpoint','ossPublicBaseUrl'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('ossPathPrefix').value='ai-images';
-  saveOssConfig(false);
-  showStatus('已切换为优先使用上传服务环境变量；仍可填写路径前缀等覆盖项','success');
-}
+    // 拖拽
+    refUploadArea.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        refUploadArea.classList.add('dragover');
+    });
+    refUploadArea.addEventListener('dragleave', () => refUploadArea.classList.remove('dragover'));
+    refUploadArea.addEventListener('drop', e => {
+        e.preventDefault();
+        refUploadArea.classList.remove('dragover');
+        const file = e.dataTransfer?.files?.[0];
+        if (file) handleRefFile(file);
+    });
 
-// ========== 参考图相关 ==========
-const refUploadArea=document.getElementById('refUploadArea');
-const refPreviewWrap=document.getElementById('refPreviewWrap');
-const refPreviewImg=document.getElementById('refPreviewImg');
-const refInfo=document.getElementById('refInfo');
-const refFileInput=document.getElementById('refFileInput');
-
-function openRefPicker(e){
-  if(e)e.stopPropagation();
-  refFileInput.value='';
-  refFileInput.click();
-}
-
-refUploadArea.addEventListener('click',openRefPicker);
-refUploadArea.addEventListener('keydown',e=>{
-  if(e.key==='Enter'||e.key===' '){
-    e.preventDefault();
-    openRefPicker();
-  }
-});
-refFileInput.addEventListener('change',e=>{
-  const [file]=e.target.files||[];
-  if(file)handleRefFile(file);
-});
-
-// 拖拽
-refUploadArea.addEventListener('dragover',e=>{
-  e.preventDefault();
-  e.dataTransfer.dropEffect='copy';
-  refUploadArea.classList.add('dragover');
-});
-refUploadArea.addEventListener('dragleave',()=>refUploadArea.classList.remove('dragover'));
-refUploadArea.addEventListener('drop',e=>{
-  e.preventDefault();
-  refUploadArea.classList.remove('dragover');
-  const file=e.dataTransfer?.files?.[0];
-  if(file)handleRefFile(file);
-});
-
-// 粘贴
-document.addEventListener('paste',e=>{
-  const items=e.clipboardData?.items||[];
-  for(let i=0;i<items.length;i++){
-    if(items[i].type.startsWith('image/')){
-      const file=items[i].getAsFile();
-      if(file)handleRefFile(file);
-      break;
-    }
-  }
-});
-
-function handleRefFile(file){
-  if(!file){showStatus('请选择图片文件','danger');return}
-  if(!REF_IMAGE_TYPES.has(file.type)){showStatus('参考图仅支持 PNG、JPG、WEBP','danger');return}
-  if(file.size===0){showStatus('图片文件为空，请重新选择','danger');return}
-  if(file.size>MAX_REF_FILE_SIZE){showStatus('参考图不能超过 10MB','danger');return}
-  const reader=new FileReader();
-  reader.onerror=()=>showStatus('读取参考图失败，请重试','danger');
-  reader.onload=e=>{
-    refImageFile=file;
-    refImageBase64=e.target.result; // data:image/xxx;base64,...
-    refPreviewImg.src=refImageBase64;
-    refPreviewWrap.classList.add('active');
-    refUploadArea.style.display='none';
-    refInfo.textContent=`参考图 · ${file.name} · ${(file.size/1024).toFixed(1)}KB`;
-    showStatus('参考图已添加，可直接生成或更换图片','success');
-  };
-  reader.readAsDataURL(file);
-}
-
-function removeRefImage(e){
-  if(e)e.stopPropagation();
-  refImageFile=null;
-  refImageBase64=null;
-  refPreviewImg.src='';
-  refPreviewWrap.classList.remove('active');
-  refUploadArea.style.display='flex';
-  refFileInput.value='';
-  showStatus('已移除参考图');
-}
-
-// ========== 生成相关 ==========
-function showPlaceholder(){
-  document.getElementById('imagesGrid').innerHTML='<div class="placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><p>输入 Prompt 开始生成图片</p></div>';
-}
-showPlaceholder();
-
-function showStatus(msg,type='info'){
-  const el=document.getElementById('status');
-  el.textContent=msg||'';
-  el.style.color=STATUS_COLORS[type]||STATUS_COLORS.info;
-  if(type==='success')setTimeout(()=>{
-    if(el.textContent===msg){
-      el.textContent='';
-      el.style.color=STATUS_COLORS.info;
-    }
-  },3000);
-}
-
-function buildImageRequest(fullPrompt,size){
-  const apiConfig=getImageApiConfig();
-  if(refImageFile){
-    const formData=new FormData();
-    formData.append('model',apiConfig.model);
-    formData.append('prompt',fullPrompt);
-    formData.append('size',size);
-    formData.append('n','1');
-    formData.append('image[]',refImageFile,refImageFile.name||'reference-image');
-    return {
-      url:`${apiConfig.baseUrl}/edits`,
-      options:{
-        method:'POST',
-        headers:{'Authorization':`Bearer ${getKey()}`},
-        body:formData
-      }
-    };
-  }
-
-  return {
-    url:`${apiConfig.baseUrl}/generations`,
-    options:{
-      method:'POST',
-      headers:{'Authorization':`Bearer ${getKey()}`,'Content-Type':'application/json'},
-      body:JSON.stringify({model:apiConfig.model,prompt:fullPrompt,size,n:1})
-    }
-  };
-}
-
-async function uploadImageToOss(src,prompt,index){
-  const {serverUrl,oss}=buildOssPayloadConfig();
-  const res=await fetch(`${serverUrl}/api/oss/upload`,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({oss,image:src,prompt,index})
-  });
-  const data=await res.json().catch(()=>null);
-  if(!res.ok||data?.error)throw new Error(data?.error||`上传失败（${res.status}）`);
-  return data;
-}
-
-async function generate(){
-  if(generating)return;
-  const apiKey=getKey();
-  if(!apiKey){showStatus('请输入 API Key','danger');return}
-  const prompt=document.getElementById('prompt').value.trim();
-  if(!prompt){showStatus('请输入 Prompt','danger');return}
-  const count=parseInt(document.getElementById('count').value);
-  const style=document.getElementById('style').value;
-  const size=document.getElementById('size').value;
-  const fullPrompt=style?`${prompt}, ${style}`:prompt;
-  const ossEnabled=getOssConfig().enabled;
-  saveImageApiConfig(false);
-  if(ossEnabled)saveOssConfig(false);
-
-  generating=true;
-  const btn=document.getElementById('generateBtn');
-  btn.disabled=true;
-  document.getElementById('spinner').style.display='block';
-  document.getElementById('btnText').textContent='生成中...';
-  document.getElementById('imagesGrid').innerHTML='';
-  document.getElementById('outputTitle').textContent=`正在生成 ${count} 张图片...`;
-  const results=[];
-  const uploads=[];
-  try{
-    for(let i=0;i<count;i++){
-      showStatus(`正在生成第 ${i+1}/${count} 张...`);
-      try{
-        const {url,options}=buildImageRequest(fullPrompt,size);
-        const res=await fetch(url,options);
-        const data=await res.json().catch(()=>null);
-        if(!res.ok||data?.error){
-          const detail=data?.error?.message||data?.message||`请求失败（${res.status}）`;
-          addErrorCard(`第${i+1}张失败: ${detail}`);
-          continue;
-        }
-        const b64=data.data?.[0]?.b64_json;
-        if(b64){
-          const src='data:image/png;base64,'+b64;
-          results.push(src);
-          const card=addImageCard(src,i,{uploading:ossEnabled});
-          if(ossEnabled){
-            try{
-              showStatus(`第 ${i+1}/${count} 张已生成，正在上传 OSS...`);
-              const uploaded=await uploadImageToOss(src,fullPrompt,i);
-              uploads[i]=uploaded;
-              updateImageUpload(card,uploaded);
-            }catch(uploadError){
-              uploads[i]={error:uploadError.message};
-              updateImageUpload(card,null,uploadError);
+    // 粘贴
+    document.addEventListener('paste', e => {
+        const items = e.clipboardData?.items || [];
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.startsWith('image/')) {
+                const file = items[i].getAsFile();
+                if (file) handleRefFile(file);
+                break;
             }
-          }
-        }else{
-          addErrorCard(`第${i+1}张失败: 未返回图片数据`);
         }
-      }catch(e){
-        addErrorCard(`第${i+1}张失败: ${e.message}`);
-      }
+    });
+
+    function handleRefFile(file) {
+        if (!file) {
+            showStatus('请选择图片文件', 'danger');
+            return
+        }
+        if (!REF_IMAGE_TYPES.has(file.type)) {
+            showStatus('参考图仅支持 PNG、JPG、WEBP', 'danger');
+            return
+        }
+        if (file.size === 0) {
+            showStatus('图片文件为空，请重新选择', 'danger');
+            return
+        }
+        if (file.size > MAX_REF_FILE_SIZE) {
+            showStatus('参考图不能超过 10MB', 'danger');
+            return
+        }
+        const reader = new FileReader();
+        reader.onerror = () => showStatus('读取参考图失败，请重试', 'danger');
+        reader.onload = e => {
+            refImageFile = file;
+            refImageBase64 = e.target.result; // data:image/xxx;base64,...
+            refPreviewImg.src = refImageBase64;
+            refPreviewWrap.classList.add('active');
+            refUploadArea.style.display = 'none';
+            refInfo.textContent = `参考图 · ${file.name} · ${(file.size / 1024).toFixed(1)}KB`;
+            showStatus('参考图已添加，可直接生成或更换图片', 'success');
+        };
+        reader.readAsDataURL(file);
     }
-  
-    if(results.length>0)saveHistory(prompt,size,results,!!refImageBase64,uploads);
-    document.getElementById('outputTitle').textContent=`生成完成 (${results.length}/${count})`;
-    const uploadedCount=uploads.filter(item=>item?.url).length;
-    if(results.length===count){
-      showStatus(ossEnabled?`生成完成，共 ${results.length} 张图片，OSS 上传成功 ${uploadedCount} 张`:`生成完成，共 ${results.length} 张图片`,'success');
-    }else if(results.length>0){
-      showStatus(ossEnabled?`生成完成，成功 ${results.length} 张，失败 ${count-results.length} 张，OSS 上传成功 ${uploadedCount} 张`:`生成完成，成功 ${results.length} 张，失败 ${count-results.length} 张`);
-    }else{
-      showStatus('生成失败，请检查接口返回信息','danger');
+
+    function removeRefImage(e) {
+        if (e) e.stopPropagation();
+        refImageFile = null;
+        refImageBase64 = null;
+        refPreviewImg.src = '';
+        refPreviewWrap.classList.remove('active');
+        refUploadArea.style.display = 'flex';
+        refFileInput.value = '';
+        showStatus('已移除参考图');
     }
-  }finally{
-    btn.disabled=false;
-    document.getElementById('spinner').style.display='none';
-    document.getElementById('btnText').textContent='生成图片';
-    generating=false;
-  }
-}
 
-function addImageCard(src,idx,opts={}){
-  const grid=document.getElementById('imagesGrid');
-  const card=document.createElement('div');
-  card.className='img-card';
-  const img=document.createElement('img');
-  img.src=src;img.alt='Generated image '+(idx+1);
-  img.onclick=()=>openLightbox(src);
-  const acts=document.createElement('div');
-  acts.className='actions';
-  const dlBtn=document.createElement('button');
-  dlBtn.textContent='下载';dlBtn.onclick=e=>{e.stopPropagation();downloadImage(src,'ai-image-'+Date.now()+'.png')};
-  const cpBtn=document.createElement('button');
-  cpBtn.textContent='复制';cpBtn.onclick=e=>{e.stopPropagation();copyBase64(src)};
-  acts.append(dlBtn,cpBtn);
-  if(opts.uploadUrl){
-    const ossBtn=document.createElement('button');
-    ossBtn.textContent='OSS';
-    ossBtn.onclick=e=>{e.stopPropagation();window.open(opts.uploadUrl,'_blank','noopener')};
-    acts.appendChild(ossBtn);
-  }
-  card.append(img,acts);
-  if(opts.uploading||opts.uploadUrl||opts.uploadError){
-    const line=document.createElement('div');
-    line.className='upload-line';
-    card.appendChild(line);
-    if(opts.uploadUrl)updateImageUpload(card,{url:opts.uploadUrl,objectName:opts.objectName});
-    else if(opts.uploadError)updateImageUpload(card,null,new Error(opts.uploadError));
-    else line.textContent='OSS 上传中...';
-  }
-  grid.appendChild(card);
-  return card;
-}
+    // ========== 生成相关 ==========
+    function showPlaceholder() {
+        document.getElementById('imagesGrid').innerHTML = '<div class="placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><p>输入 Prompt 开始生成图片</p></div>';
+    }
 
-function updateImageUpload(card,result,error){
-  const line=card.querySelector('.upload-line');
-  if(!line)return;
-  line.textContent='';
-  if(error){
-    line.style.color='var(--danger)';
-    line.textContent='OSS 上传失败：'+error.message;
-    return;
-  }
-  line.style.color='var(--text2)';
-  const label=document.createElement('span');
-  label.textContent='OSS 已上传：';
-  const link=document.createElement('a');
-  link.href=result.url;
-  link.target='_blank';
-  link.rel='noopener noreferrer';
-  link.textContent=result.objectName||result.url;
-  line.append(label,link);
-}
-function addErrorCard(msg){
-  const grid=document.getElementById('imagesGrid');
-  const d=document.createElement('div');
-  d.style.cssText='padding:20px;background:var(--surface2);border-radius:12px;color:var(--danger);font-size:.9rem;border:1px solid var(--border)';
-  d.textContent=msg;
-  grid.appendChild(d);
-}
+    showPlaceholder();
 
-function openLightbox(src){document.getElementById('lbImg').src=src;document.getElementById('lightbox').classList.add('active')}
-function closeLightbox(){document.getElementById('lightbox').classList.remove('active')}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLightbox()});
+    function showGeneratingPlaceholder(count) {
+        document.getElementById('imagesGrid').innerHTML = `<div class="placeholder" id="generationPlaceholder"><span class="spinner" style="display:block"></span><p>正在生成 ${count} 张图片...</p></div>`;
+    }
 
-function downloadImage(src,name){
-  const a=document.createElement('a');a.href=src;a.download=name;document.body.appendChild(a);a.click();a.remove();
-}
+    function removeGeneratingPlaceholder() {
+        document.getElementById('generationPlaceholder')?.remove();
+    }
 
-function copyBase64(src){
-  if(!navigator.clipboard){
-    showStatus('当前环境不支持复制到剪贴板','danger');
-    return;
-  }
-  navigator.clipboard.writeText(src).then(()=>{showStatus('已复制到剪贴板','success')}).catch(()=>showStatus('复制失败，请手动保存图片','danger'));
-}
+    function showStatus(msg, type = 'info') {
+        const el = document.getElementById('status');
+        el.textContent = msg || '';
+        el.style.color = STATUS_COLORS[type] || STATUS_COLORS.info;
+        if (type === 'success') setTimeout(() => {
+            if (el.textContent === msg) {
+                el.textContent = '';
+                el.style.color = STATUS_COLORS.info;
+            }
+        }, 3000);
+    }
 
-function saveHistory(prompt,size,images,hasRef,uploads=[]){
-  const history=JSON.parse(localStorage.getItem('imgGenHistory')||'[]');
-  history.unshift({
-    prompt,
-    size,
-    images:images.map(s=>s.substring(0,200)),
-    fullImages:images,
-    uploadUrls:uploads.map(item=>item?.url||''),
-    uploadObjects:uploads.map(item=>item?.objectName||''),
-    time:new Date().toLocaleString(),
-    hasRef
-  });
-  if(history.length>20)history.length=20;
-  try{localStorage.setItem('imgGenHistory',JSON.stringify(history))}catch(e){
-    history.forEach(h=>delete h.fullImages);
-    try{localStorage.setItem('imgGenHistory',JSON.stringify(history))}catch(e2){}
-  }
-  renderHistory();
-}
+    function buildImageRequest(fullPrompt, size) {
+        const apiConfig = getImageApiConfig();
+        if (refImageFile) {
+            const formData = new FormData();
+            formData.append('model', apiConfig.model);
+            formData.append('prompt', fullPrompt);
+            formData.append('size', size);
+            formData.append('n', '1');
+            formData.append('image[]', refImageFile, refImageFile.name || 'reference-image');
+            return {
+                url: `${apiConfig.baseUrl}/edits`,
+                options: {
+                    method: 'POST',
+                    headers: {'Authorization': `Bearer ${getKey()}`},
+                    body: formData
+                }
+            };
+        }
 
-function renderHistory(){
-  const history=JSON.parse(localStorage.getItem('imgGenHistory')||'[]');
-  const el=document.getElementById('history');
-  if(!history.length){el.innerHTML='<p style="font-size:.8rem;color:var(--text2);text-align:center;padding:12px">暂无记录</p>';return}
-  el.innerHTML=history.map((h,i)=>`<div class="history-item" onclick="reuse(${i})"><div style="width:48px;height:48px;border-radius:6px;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">${h.hasRef?'🖼+':'🖼'}</div><div class="info"><p>${escapeHtml(h.prompt)}</p><span>${escapeHtml(h.size||'')} · ${escapeHtml(h.time||'')}${h.hasRef?' · 含参考图':''}${h.uploadUrls?.some(Boolean)?' · 已上传 OSS':''}</span></div></div>`).join('');
-}
+        return {
+            url: `${apiConfig.baseUrl}/generations`,
+            options: {
+                method: 'POST',
+                headers: {'Authorization': `Bearer ${getKey()}`, 'Content-Type': 'application/json'},
+                body: JSON.stringify({model: apiConfig.model, prompt: fullPrompt, size, n: 1})
+            }
+        };
+    }
 
-function reuse(idx){
-  const history=JSON.parse(localStorage.getItem('imgGenHistory')||'[]');
-  if(!history[idx])return;
-  document.getElementById('prompt').value=history[idx].prompt;
-  if(history[idx].size)document.getElementById('size').value=history[idx].size;
-  if(history[idx].fullImages?.length){
-    document.getElementById('imagesGrid').innerHTML='';
-    history[idx].fullImages.forEach((src,i)=>addImageCard(src,i,{
-      uploadUrl:history[idx].uploadUrls?.[i],
-      objectName:history[idx].uploadObjects?.[i]
-    }));
-    document.getElementById('outputTitle').textContent='历史记录';
-  }
-}
+    async function uploadImageToOss(src, prompt, index) {
+        const {serverUrl, oss} = buildOssPayloadConfig();
+        const res = await fetch(`${serverUrl}/api/oss/upload`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({oss, image: src, prompt, index})
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || data?.error) throw new Error(data?.error || `上传失败（${res.status}）`);
+        return data;
+    }
 
-function clearHistory(){
-  if(!confirm('确认清空历史记录吗？此操作会删除浏览器本地保存的历史项。'))return;
-  localStorage.removeItem('imgGenHistory');
-  renderHistory();
-}
+    function getUploadUrl(item) {
+        if (typeof item === 'string') return item;
+        return item?.url || item?.signedUrl || item?.publicUrl || item?.defaultUrl || '';
+    }
 
-function escapeHtml(value){
-  return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-}
+    async function generate() {
+        if (generating) return;
+        const apiKey = getKey();
+        if (!apiKey) {
+            showStatus('请输入 API Key', 'danger');
+            return
+        }
+        const prompt = document.getElementById('prompt').value.trim();
+        if (!prompt) {
+            showStatus('请输入 Prompt', 'danger');
+            return
+        }
+        const count = parseInt(document.getElementById('count').value);
+        const style = document.getElementById('style').value;
+        const size = document.getElementById('size').value;
+        const fullPrompt = style ? `${prompt}, ${style}` : prompt;
+        const ossEnabled = getOssConfig().enabled;
+        saveImageApiConfig(false);
+        if (ossEnabled) saveOssConfig(false);
 
-loadImageApiConfig();
-loadOssConfig();
-renderHistory();
+        generating = true;
+        const btn = document.getElementById('generateBtn');
+        btn.disabled = true;
+        document.getElementById('spinner').style.display = 'block';
+        document.getElementById('btnText').textContent = '生成中...';
+        showGeneratingPlaceholder(count);
+        document.getElementById('outputTitle').textContent = `正在生成 ${count} 张图片...`;
+        const results = [];
+        const uploads = [];
+        try {
+            for (let i = 0; i < count; i++) {
+                showStatus(`正在生成第 ${i + 1}/${count} 张...`);
+                try {
+                    const {url, options} = buildImageRequest(fullPrompt, size);
+                    const res = await fetch(url, options);
+                    const data = await res.json().catch(() => null);
+                    if (!res.ok || data?.error) {
+                        const detail = data?.error?.message || data?.message || `请求失败（${res.status}）`;
+                        addErrorCard(`第${i + 1}张失败: ${detail}`);
+                        continue;
+                    }
+                    const b64 = data.data?.[0]?.b64_json;
+                    if (b64) {
+                        const src = 'data:image/png;base64,' + b64;
+                        const resultIndex = results.length;
+                        results.push(src);
+                        const card = addImageCard(src, resultIndex, {uploading: ossEnabled});
+                        if (ossEnabled) {
+                            try {
+                                showStatus(`第 ${i + 1}/${count} 张已生成，正在上传 OSS...`);
+                                const uploaded = await uploadImageToOss(src, fullPrompt, i);
+                                uploads[resultIndex] = uploaded;
+                                updateImageUpload(card, uploaded);
+                            } catch (uploadError) {
+                                uploads[resultIndex] = {error: uploadError.message};
+                                updateImageUpload(card, null, uploadError);
+                            }
+                        }
+                    } else {
+                        addErrorCard(`第${i + 1}张失败: 未返回图片数据`);
+                    }
+                } catch (e) {
+                    addErrorCard(`第${i + 1}张失败: ${e.message}`);
+                }
+            }
+
+            if (results.length > 0) saveHistory(prompt, size, results, !!refImageBase64, uploads);
+            document.getElementById('outputTitle').textContent = `生成完成 (${results.length}/${count})`;
+            const uploadedCount = uploads.filter(item => item?.url).length;
+            if (results.length === count) {
+                showStatus(ossEnabled ? `生成完成，共 ${results.length} 张图片，OSS 上传成功 ${uploadedCount} 张` : `生成完成，共 ${results.length} 张图片`, 'success');
+            } else if (results.length > 0) {
+                showStatus(ossEnabled ? `生成完成，成功 ${results.length} 张，失败 ${count - results.length} 张，OSS 上传成功 ${uploadedCount} 张` : `生成完成，成功 ${results.length} 张，失败 ${count - results.length} 张`);
+            } else {
+                showStatus('生成失败，请检查接口返回信息', 'danger');
+            }
+        } finally {
+            btn.disabled = false;
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('btnText').textContent = '生成图片';
+            generating = false;
+        }
+    }
+
+    function addImageCard(src, idx, opts = {}) {
+        removeGeneratingPlaceholder();
+        const grid = document.getElementById('imagesGrid');
+        const card = document.createElement('div');
+        card.className = 'img-card';
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = 'Generated image ' + (idx + 1);
+        img.onclick = () => openLightbox(src);
+        const acts = document.createElement('div');
+        acts.className = 'actions';
+        const dlBtn = document.createElement('button');
+        dlBtn.textContent = '下载';
+        dlBtn.onclick = e => {
+            e.stopPropagation();
+            downloadImage(src, 'ai-image-' + Date.now() + '.png')
+        };
+        const cpBtn = document.createElement('button');
+        cpBtn.textContent = '复制';
+        cpBtn.onclick = e => {
+            e.stopPropagation();
+            copyBase64(src)
+        };
+        acts.append(dlBtn, cpBtn);
+        if (opts.uploadUrl) {
+            const ossBtn = document.createElement('button');
+            ossBtn.textContent = 'OSS';
+            ossBtn.onclick = e => {
+                e.stopPropagation();
+                window.open(opts.uploadUrl, '_blank', 'noopener')
+            };
+            acts.appendChild(ossBtn);
+        }
+        card.append(img, acts);
+        if (opts.uploading || opts.uploadUrl || opts.uploadError) {
+            const line = document.createElement('div');
+            line.className = 'upload-line';
+            card.appendChild(line);
+            if (opts.uploadUrl) updateImageUpload(card, {url: opts.uploadUrl, objectName: opts.objectName});
+            else if (opts.uploadError) updateImageUpload(card, null, new Error(opts.uploadError));
+            else line.textContent = 'OSS 上传中...';
+        }
+        grid.appendChild(card);
+        return card;
+    }
+
+    function updateImageUpload(card, result, error) {
+        const line = card.querySelector('.upload-line');
+        if (!line) return;
+        line.textContent = '';
+        if (error) {
+            line.style.color = 'var(--danger)';
+            line.textContent = 'OSS 上传失败：' + error.message;
+            return;
+        }
+        line.style.color = 'var(--text2)';
+        const uploadUrl = getUploadUrl(result);
+        const label = document.createElement('span');
+        label.textContent = 'OSS 已上传：';
+        const link = document.createElement('a');
+        link.href = uploadUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = uploadUrl;
+        line.append(label, link);
+    }
+
+    function addErrorCard(msg) {
+        removeGeneratingPlaceholder();
+        const grid = document.getElementById('imagesGrid');
+        const d = document.createElement('div');
+        d.style.cssText = 'padding:20px;background:var(--surface2);border-radius:12px;color:var(--danger);font-size:.9rem;border:1px solid var(--border)';
+        d.textContent = msg;
+        grid.appendChild(d);
+    }
+
+    function openLightbox(src) {
+        document.getElementById('lbImg').src = src;
+        document.getElementById('lightbox').classList.add('active')
+    }
+
+    function closeLightbox() {
+        document.getElementById('lightbox').classList.remove('active')
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeLightbox()
+    });
+
+    function downloadImage(src, name) {
+        const a = document.createElement('a');
+        a.href = src;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
+    function copyBase64(src) {
+        if (!navigator.clipboard) {
+            showStatus('当前环境不支持复制到剪贴板', 'danger');
+            return;
+        }
+        navigator.clipboard.writeText(src).then(() => {
+            showStatus('已复制到剪贴板', 'success')
+        }).catch(() => showStatus('复制失败，请手动保存图片', 'danger'));
+    }
+
+    function readHistory() {
+        try {
+            const history = JSON.parse(localStorage.getItem('imgGenHistory') || '[]');
+            return Array.isArray(history) ? history : [];
+        } catch (e) {
+            showStatus('历史记录读取失败，请先备份或清空浏览器里损坏的历史数据', 'danger');
+            return [];
+        }
+    }
+
+    function compactHistoryItem(item) {
+        const uploadUrls = Array.isArray(item.uploadUrls) ? item.uploadUrls : [];
+        const fullImages = Array.isArray(item.fullImages) ? item.fullImages : [];
+        const compact = {...item};
+        compact.fullImages = fullImages.map((src, i) => {
+            if (typeof src === 'string' && !src.startsWith('data:')) return src;
+            return uploadUrls[i] || '';
+        }).filter(Boolean);
+        if (!compact.fullImages.length) delete compact.fullImages;
+        return compact;
+    }
+
+    function persistHistory(history) {
+        const attempts = [
+            history,
+            history.map(compactHistoryItem),
+            history.slice(0, 10).map(compactHistoryItem),
+            history.slice(0, 5).map(compactHistoryItem)
+        ];
+        for (const candidate of attempts) {
+            try {
+                localStorage.setItem('imgGenHistory', JSON.stringify(candidate));
+                return candidate;
+            } catch (e) {
+            }
+        }
+        showStatus('历史记录保存失败：浏览器本地存储空间不足', 'danger');
+        return history;
+    }
+
+    function saveHistory(prompt, size, images, hasRef, uploads = []) {
+        const history = readHistory();
+        const uploadUrls = images.map((_, i) => getUploadUrl(uploads[i]));
+        const uploadObjects = images.map((_, i) => uploads[i]?.objectName || '');
+        history.unshift({
+            prompt,
+            size,
+            images: images.map(s => s.substring(0, 200)),
+            fullImages: images.map((src, i) => uploadUrls[i] || src),
+            uploadUrls,
+            uploadObjects,
+            time: new Date().toLocaleString(),
+            hasRef
+        });
+        if (history.length > 20) history.length = 20;
+        renderHistory(persistHistory(history));
+    }
+
+    function renderHistory(history = readHistory()) {
+        const el = document.getElementById('history');
+        if (!history.length) {
+            el.innerHTML = '<p style="font-size:.8rem;color:var(--text2);text-align:center;padding:12px">暂无记录</p>';
+            return
+        }
+        el.innerHTML = history.map((h, i) => `<div class="history-item" onclick="reuse(${i})"><div style="width:48px;height:48px;border-radius:6px;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">${h.hasRef ? '🖼+' : '🖼'}</div><div class="info"><p>${escapeHtml(h.prompt)}</p><span>${escapeHtml(h.size || '')} · ${escapeHtml(h.time || '')}${h.hasRef ? ' · 含参考图' : ''}${Array.isArray(h.uploadUrls) && h.uploadUrls.some(Boolean) ? ' · 已上传 OSS' : ''}</span></div></div>`).join('');
+    }
+
+    function reuse(idx) {
+        const history = readHistory();
+        const item = history[idx];
+        if (!item) return;
+        document.getElementById('prompt').value = item.prompt;
+        if (item.size) document.getElementById('size').value = item.size;
+        const storedImages = Array.isArray(item.fullImages) && item.fullImages.length
+            ? item.fullImages
+            : (Array.isArray(item.uploadUrls) ? item.uploadUrls.filter(Boolean) : []);
+        if (storedImages.length) {
+            document.getElementById('imagesGrid').innerHTML = '';
+            storedImages.forEach((src, i) => addImageCard(src, i, {
+                uploadUrl: item.uploadUrls?.[i] || (src.startsWith('data:') ? '' : src),
+                objectName: item.uploadObjects?.[i]
+            }));
+            document.getElementById('outputTitle').textContent = '历史记录';
+        }
+    }
+
+    function clearHistory() {
+        if (!confirm('确认清空历史记录吗？此操作会删除浏览器本地保存的历史项。')) return;
+        localStorage.removeItem('imgGenHistory');
+        renderHistory();
+    }
+
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, char => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]));
+    }
+
+    loadInputMask();
+    loadImageApiConfig();
+    loadOssConfig();
+    renderHistory();
 </script>
 </body>
 </html>

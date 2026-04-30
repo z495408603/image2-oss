@@ -113,6 +113,10 @@ function buildPublicUrl(config, objectName) {
     return `${config.publicBaseUrl.replace(/\/+$/g, '')}/${objectName}`;
   }
 
+  return buildDefaultOssUrl(config, objectName);
+}
+
+function buildDefaultOssUrl(config, objectName) {
   if (config.endpoint) {
     const endpoint = config.endpoint.replace(/^https?:\/\//, '').replace(/\/+$/g, '');
     return `${config.secure ? 'https' : 'http'}://${config.bucket}.${endpoint}/${objectName}`;
@@ -123,6 +127,7 @@ function buildPublicUrl(config, objectName) {
 
 module.exports = {
   SUPPORTED_CONTENT_TYPES,
+  buildDefaultOssUrl,
   buildObjectName,
   buildPublicUrl,
   normalizeAliyunConfig,

@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
+  buildDefaultOssUrl,
   buildObjectName,
   buildPublicUrl,
   normalizeAliyunConfig,
@@ -59,4 +60,14 @@ test('buildPublicUrl uses custom public base url when provided', () => {
   }, 'ai/a.png');
 
   assert.equal(url, 'https://cdn.example.com/assets/ai/a.png');
+});
+
+test('buildDefaultOssUrl uses aliyun bucket endpoint when no custom domain is needed', () => {
+  const url = buildDefaultOssUrl({
+    bucket: 'gpt-image2-shadow',
+    region: 'oss-cn-beijing',
+    secure: false
+  }, 'ai-images/a.png');
+
+  assert.equal(url, 'http://gpt-image2-shadow.oss-cn-beijing.aliyuncs.com/ai-images/a.png');
 });
