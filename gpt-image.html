@@ -757,7 +757,7 @@
             <button class="btn btn-secondary" style="padding:4px 10px;font-size:.75rem" onclick="clearHistory()">清空
             </button>
         </div>
-        <div id="history" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto"></div>
+        <div id="history" style="display:flex;flex-direction:column;gap:8px;max-height:300px"></div>
     </div>
     <div class="main">
         <div class="output-area"><h2 id="outputTitle">生成结果</h2>
@@ -781,6 +781,7 @@
     const REF_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
     const OSS_CONFIG_FIELDS = ['ossServerUrl', 'ossRegion', 'ossBucket', 'ossAccessKeyId', 'ossAccessKeySecret', 'ossStsToken', 'ossPathPrefix', 'ossEndpoint', 'ossPublicBaseUrl', 'ossSignedUrlExpires'];
     let generating = false;
+    let historyCache = [];
     let refImageBase64 = null; // 存储参考图base64
     let refImageFile = null; // 保留原始文件供 OpenAI edits 接口上传
 
@@ -1300,10 +1301,12 @@
         }).catch(() => showStatus('复制失败，请手动保存图片', 'danger'));
     }
 
-    function readHistory() {
+    function readHistory(force = false) {
+        if (!force && historyCache.length) return historyCache;
         try {
             const history = JSON.parse(localStorage.getItem('imgGenHistory') || '[]');
-            return Array.isArray(history) ? history : [];
+            historyCache = Array.isArray(history) ? history.map(compactHistoryItem) : [];
+            return historyCache;
         } catch (e) {
             showStatus('历史记录读取失败，请先备份或清空浏览器里损坏的历史数据', 'danger');
             return [];
@@ -1312,17 +1315,15 @@
 
     function compactHistoryItem(item) {
         const uploadUrls = Array.isArray(item.uploadUrls) ? item.uploadUrls : [];
-        const fullImages = Array.isArray(item.fullImages) ? item.fullImages : [];
         const compact = {...item};
-        compact.fullImages = fullImages.map((src, i) => {
-            if (typeof src === 'string' && !src.startsWith('data:')) return src;
-            return uploadUrls[i] || '';
-        }).filter(Boolean);
-        if (!compact.fullImages.length) delete compact.fullImages;
+        delete compact.images;
+        compact.fullImages = uploadUrls.filter(Boolean);
+        if (!compact.fullImages.length) compact.fullImages = [];
         return compact;
     }
 
     function persistHistory(history) {
+        historyCache = history;
         const attempts = [
             history,
             history.map(compactHistoryItem),
@@ -1332,6 +1333,7 @@
         for (const candidate of attempts) {
             try {
                 localStorage.setItem('imgGenHistory', JSON.stringify(candidate));
+                historyCache = candidate;
                 return candidate;
             } catch (e) {
             }
@@ -1347,24 +1349,54 @@
         history.unshift({
             prompt,
             size,
-            images: images.map(s => s.substring(0, 200)),
-            fullImages: images.map((src, i) => uploadUrls[i] || src),
+            fullImages: uploadUrls.filter(Boolean),
             uploadUrls,
             uploadObjects,
+            imageCount: images.length,
             time: new Date().toLocaleString(),
             hasRef
         });
         if (history.length > 20) history.length = 20;
-        renderHistory(persistHistory(history));
+        renderHistory(history);
+        persistHistory(history);
     }
 
     function renderHistory(history = readHistory()) {
         const el = document.getElementById('history');
+        if (!el) return;
+        el.innerHTML = '';
         if (!history.length) {
-            el.innerHTML = '<p style="font-size:.8rem;color:var(--text2);text-align:center;padding:12px">暂无记录</p>';
+            const empty = document.createElement('p');
+            empty.style.cssText = 'font-size:.8rem;color:var(--text2);text-align:center;padding:12px';
+            empty.textContent = '暂无记录';
+            el.appendChild(empty);
             return
         }
-        el.innerHTML = history.map((h, i) => `<div class="history-item" onclick="reuse(${i})"><div style="width:48px;height:48px;border-radius:6px;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">${h.hasRef ? '🖼+' : '🖼'}</div><div class="info"><p>${escapeHtml(h.prompt)}</p><span>${escapeHtml(h.size || '')} · ${escapeHtml(h.time || '')}${h.hasRef ? ' · 含参考图' : ''}${Array.isArray(h.uploadUrls) && h.uploadUrls.some(Boolean) ? ' · 已上传 OSS' : ''}</span></div></div>`).join('');
+        history.forEach((h, i) => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.addEventListener('click', () => reuse(i));
+
+            const icon = document.createElement('div');
+            icon.style.cssText = 'width:48px;height:48px;border-radius:6px;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0';
+            icon.textContent = h.hasRef ? '图+' : '图';
+
+            const info = document.createElement('div');
+            info.className = 'info';
+
+            const title = document.createElement('p');
+            title.textContent = h.prompt || '未命名生成记录';
+
+            const meta = document.createElement('span');
+            const parts = [h.size, h.time];
+            if (h.hasRef) parts.push('含参考图');
+            if (Array.isArray(h.uploadUrls) && h.uploadUrls.some(Boolean)) parts.push('已上传 OSS');
+            meta.textContent = parts.filter(Boolean).join(' · ');
+
+            info.append(title, meta);
+            item.append(icon, info);
+            el.appendChild(item);
+        });
     }
 
     function reuse(idx) {
@@ -1388,6 +1420,7 @@
 
     function clearHistory() {
         if (!confirm('确认清空历史记录吗？此操作会删除浏览器本地保存的历史项。')) return;
+        historyCache = [];
         localStorage.removeItem('imgGenHistory');
         renderHistory();
     }
@@ -1405,7 +1438,11 @@
     loadInputMask();
     loadImageApiConfig();
     loadOssConfig();
-    renderHistory();
+    renderHistory(readHistory(true));
+    setTimeout(() => renderHistory(readHistory(true)), 0);
+    window.addEventListener('storage', e => {
+        if (e.key === 'imgGenHistory') renderHistory(readHistory(true));
+    });
 </script>
 </body>
 </html>
